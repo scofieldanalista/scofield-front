@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scofield Analista PRO - Frontend</title>
+  <style>
+    body {
+      background: #111;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      padding: 15px;
+    }
+    h1 { text-align: center; color: #ff4747; }
+    textarea, input, button {
+      width: 100%; padding: 10px; margin: 5px 0;
+      border-radius: 5px; box-sizing: border-box;
+    }
+    textarea, input {
+      background: #222; color: #eee; border: 1px solid #555;
+    }
+    button {
+      background: #ff4747; color: white; border: none; cursor: pointer;
+    }
+    button:hover { background: #e53e3e; }
+    .secao { margin-top: 25px; }
+    .sinal {
+      background: #222; padding: 10px; margin-top: 10px;
+      border-radius: 5px;
+    }
+    .sinal button {
+      width: 48%; margin: 2px 1%; font-weight: bold;
+    }
+    .estatisticas {
+      white-space: pre-line;
+      background: #222;
+      padding: 10px;
+      border-radius: 5px;
+      margin-top: 15px;
+      font-size: 1em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Scofield Analista PRO ⚪</h1>
+
+  <div class="secao">
+    <h3>🧠 Enviar Histórico para Análise</h3>
+    <textarea id="historicoCerebro" rows="8" placeholder="Cole aqui o histórico completo com horários, números e cores..."></textarea>
+    <button onclick="enviarCerebro()">📤 Enviar Histórico</button>
+    <div id="mensagemCerebro"></div>
+  </div>
+
+  <div class="secao">
+    <h3>⏱️ Prever Próximos Brancos</h3>
+    <button onclick="pedirPrevisoes()">🔍 Obter Previsões</button>
+    <div id="previsoes"></div>
+  </div>
+
+  <div class="secao">
+    <h3>📊 Estatísticas de Acertos/Erros</h3>
+    <div id="estatisticas" class="estatisticas"></div>
+    <button onclick="limparEstatisticas()">🧹 Limpar Estatísticas</button>
+  </div>
+
+  <script>
+    const API_BASE = 'https://SEU_NOME_DE_PROJETO.username.repl.co'; // <<< TROQUE AQUI PELO LINK DO SEU REPLIT!
+
+    async function enviarCerebro() {
+      const dados = document.getElementById('historicoCerebro').value;
+      if (!dados || dados.trim().length < 10) {
+        alert('Por favor, cole um histórico válido.');
+        return;
+      }
+
+      try {
+        const res = await fetch(API_BASE + '/historico', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dados })
+        });
+        const json = await res.json();
+        if (json.mensagem) {
+          document.getElementById('mensagemCerebro').innerText = json.mensagem + ' Estratégias criadas: ' + json.totalEstrategias;
+        }
+      } catch (e) {
+        alert('Erro ao enviar histórico: ' + e.message);
+      }
+    }
+
+    async function pedirPrevisoes() {
+      try {
+        const res = await fetch(API_BASE + '/prever');
+        const json = await res.json();
+        const div = document.getElementById('previsoes');
+        div.innerHTML = '<h4>🟢 Próximos Brancos Prováveis:</h4>';
+        json.previsoes.forEach(p => {
+          const tipo = p.tipo === 'duplo' ? ' (Duplo)' : p.tipo === 'dentado' ? ' (Dentado)' : '';
+          const data = new Date(p.horario);
+          div.innerHTML += `<div class="sinal"><strong>${data.toLocaleTimeString()}</strong>${tipo}
+            <br>
+            <button onclick="registrarResultado('${p.horario}', 'win')">✅ Acertou</button>
+            <button onclick="registrarResultado('${p.horario}', 'loss')">❌ Errou</button>
+          </div>`;
+        });
+      } catch (e) {
+        alert('Erro ao obter previsões: ' + e.message);
+      }
+    }
+
+    async function registrarResultado(horario, resultado) {
+      try {
+        await fetch(API_BASE + '/resultado', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ horario, resultado })
+        });
+        alert('Resultado registrado com sucesso!');
+        atualizarEstatisticas();
+      } catch (e) {
+        alert('Erro ao registrar resultado: ' + e.message);
+      }
+    }
+
+    async function atualizarEstatisticas() {
+      try {
+        const res = await fetch(API_BASE + '/estatisticas');
+        const json = await res.json();
+        const div = document.getElementById('estatisticas');
+        div.innerText = json.map(e => `${new Date(e.registradoEm).toLocaleTimeString()} - ${e.horario} => ${e.resultado}`).reverse().join('\n');
+      } catch (e) {
+        console.error('Erro ao atualizar estatísticas:', e);
+      }
+    }
+
+    async function limparEstatisticas() {
+      if (!confirm('Tem certeza que deseja limpar as estatísticas?')) return;
+      try {
+        await fetch(API_BASE + '/limpar', { method: 'POST' });
+        document.getElementById('estatisticas').innerText = '';
+        alert('Estatísticas limpas com sucesso!');
+      } catch (e) {
+        alert('Erro ao limpar estatísticas: ' + e.message);
+      }
+    }
+
+    atualizarEstatisticas();
+  </script>
+</body>
+</html>
